@@ -1,0 +1,2349 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rummikub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Stardos+Stencil:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #2c3e50;
+            min-height: 100vh;
+            padding: 8px;
+        }
+
+        .container {
+            max-width: 962px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 6px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 22px;
+        }
+
+        .game-info {
+            background: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-size: 13px;
+        }
+
+        .board {
+            background: #f0f0f0;
+            border: 3px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .board-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #333;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(21, 40px);
+            grid-template-rows: repeat(7, 55px);
+            gap: 0;
+            background: white;
+            padding: 8px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .grid-cell {
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .grid-cell-inner {
+            width: 100%;
+            height: 100%;
+            border: 1px dashed #d0d0d0;
+            border-radius: 3px;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .grid-cell:hover .grid-cell-inner {
+            background: #f0f0f0;
+            border-color: #4299e1;
+        }
+
+        .grid-cell.drag-over .grid-cell-inner {
+            background: #bee3f8;
+            border-color: #3182ce;
+            border-width: 2px;
+            border-style: solid;
+        }
+
+        .grid-cell.occupied {
+            padding: 2px;
+        }
+
+        .grid-cell.occupied .grid-cell-inner {
+            border: none;
+            background: transparent;
+        }
+
+        .player-rack {
+            background: #2d3748;
+            border: 3px solid #1a202c;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .rack-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: white;
+
+            text-align: center;
+        }
+
+        .container{
+            position: relative;
+        }
+
+        .tiles-container {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            min-height: 60px;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+
+        .tile {
+            width: 40px;
+            height: 55px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+            position: relative;
+            font-family: 'Stardos Stencil', sans-serif;
+        }
+
+        .tile:active {
+            cursor: grabbing;
+        }
+
+        .tile.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .tile:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .tile.selected {
+            transform: translateY(-10px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+            border: 3px solid #ffd700;
+        }
+
+        .tile.red {
+            background: #ff3333;
+        }
+
+        .tile.blue {
+            background: #0066ff;
+        }
+
+        .tile.green {
+            background: #00cc44;
+        }
+
+        .tile.yellow {
+            background: #ffcc00;
+        }
+
+        .tile.red::before,
+        .tile.blue::before,
+        .tile.green::before,
+        .tile.yellow::before {
+            content: attr(data-number);
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
+        }
+
+        .tile.red::before {
+            color: #ff3333;
+        }
+
+        .tile.blue::before {
+            color: #0066ff;
+        }
+
+        .tile.green::before {
+            color: #00cc44;
+        }
+
+        .tile.yellow::before {
+            color: #ffcc00;
+        }
+
+        .tile.joker {
+            background: conic-gradient(from 0deg, #0066ff 0deg 90deg, #ff3333 90deg 180deg, #ffcc00 180deg 270deg, #00cc44 270deg 360deg);
+            position: relative;
+        }
+
+        .tile.joker::before {
+            content: 'R';
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
+            color: #000;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .tile.face-down {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            cursor: default;
+        }
+
+        .tile.face-down::before {
+            content: '?';
+            color: #a0aec0;
+            font-size: 28px;
+        }
+
+        @keyframes tilePlace {
+            0% {
+                transform: translateY(-50px) scale(0.8);
+                opacity: 0;
+            }
+            50% {
+                transform: translateY(-10px) scale(1.1);
+            }
+            100% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .tile-placed-animation {
+            animation: tilePlace 0.4s ease-out;
+        }
+
+        .player-rack.active {
+            border-color: #48bb78;
+            box-shadow: 0 0 20px rgba(72, 187, 120, 0.5);
+        }
+
+        #computer-racks-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        #computer-racks-container .player-rack {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .computer-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 15px;
+            font-size: 16px;
+            color: white;
+        }
+
+        .computer-info .tile-count {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: #1acc4b;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #1368fc;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #fd3039;
+            color: white;
+        }
+
+        .btn-new-game {
+            background: #9f7aea;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+            position: absolute;
+            width: 100%;
+            top: 0;
+            opacity: .9;
+            pointer-events: none;
+            transition: .3s ease;
+        }
+
+        .message.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .message.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .message.info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .drop-zone {
+            border: 2px dashed #4299e1;
+            background: rgba(66, 153, 225, 0.1);
+        }
+
+        .drop-zone-active {
+            border-color: #48bb78;
+            background: rgba(72, 187, 120, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .board-grid {
+                grid-template-columns: repeat(21, 35px);
+                grid-template-rows: repeat(10, 50px);
+            }
+            
+            .tile {
+                width: 35px;
+                height: 50px;
+                font-size: 18px;
+            }
+
+            .tile.red::before,
+            .tile.blue::before,
+            .tile.green::before,
+            .tile.yellow::before,
+            .tile.joker::before {
+                width: 28px;
+                height: 28px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 Rummikub 🎲</h1>
+        
+        <div class="game-info">
+            <div>
+                <strong>Плиток в стопке:</strong> <span id="pool-count">106</span>
+            </div>
+            <div>
+                <strong>Компьютеров:</strong>
+                <select id="computer-count" onchange="game.setComputerCount(this.value)" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+                    <option value="1" selected>1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+            <div>
+                <strong>Текущий игрок:</strong> <span id="current-player">Ваш ход</span>
+            </div>
+            <div>
+                <strong>Первый ход:</strong> <span id="first-meld-status">Требуется 30+ очков</span>
+            </div>
+            
+            <div>
+                <button onclick="game.newGame()" class="btn-new-game">Новая игра</button>
+            </div>
+        </div>
+
+        <div id="message" class="message" style="display: none;"></div>
+
+        <div id="computer-racks-container">
+            <!-- Computer racks will be dynamically generated here -->
+        </div>
+
+        <div class="board">
+            <div id="board-grid" class="board-grid"></div>
+        </div>
+
+        <div class="player-rack">
+            <div class="rack-title"> Количество плиток: <span id="hand-count">14</span></div>
+            <div id="player-tiles" class="tiles-container"></div>
+        </div>
+
+        <div class="controls">
+            <button onclick="game.endTurn()" class="btn-primary">✓ Закончить ход</button>
+            <button onclick="game.undoMove()" class="btn-secondary">↶ Отменить</button>
+            <button onclick="game.drawTile()" class="btn-danger">Взять плитку</button>
+        </div>
+    </div>
+
+    <script>
+        class Tile {
+            constructor(number, color, isJoker = false) {
+                this.number = number;
+                this.color = color;
+                this.isJoker = isJoker;
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+
+            get displayValue() {
+                return this.isJoker ? 'Joker' : this.number;
+            }
+
+            get value() {
+                return this.isJoker ? 0 : this.number;
+            }
+        }
+
+        class RummikubGame {
+            constructor() {
+                this.pool = [];
+                this.playerHand = [];
+                this.computerHands = [[]]; // Array of computer hands
+                this.computerCount = 1;
+                this.computerDifficulties = []; // Difficulty levels
+                this.computerNames = this.generateComputerNames();
+                this.boardGrid = Array(7).fill(null).map(() => Array(21).fill(null));
+                this.selectedTiles = [];
+                this.firstMeldMade = { player: false, computer1: false, computer2: false, computer3: false };
+                this.turnState = null;
+                this.currentPlayer = 'player'; // 'player', 'computer1', 'computer2', 'computer3'
+                this.players = ['player', 'computer1']; // Active players
+                this.init();
+            }
+
+            generateComputerNames() {
+                // Закреплённые имена по уровням сложности
+                const easyBots = [
+                    { name: 'София', difficulty: 'easy' },
+                    { name: 'Николай', difficulty: 'easy' }
+                ];
+                const mediumBots = [
+                    { name: 'Арина', difficulty: 'medium' },
+                    { name: 'Дмитрий', difficulty: 'medium' }
+                ];
+                const hardBots = [
+                    { name: 'Инна', difficulty: 'hard' },
+                    { name: 'Ярослав', difficulty: 'hard' }
+                ];
+                
+                const allBots = [...easyBots, ...mediumBots, ...hardBots];
+                const shuffled = [...allBots].sort(() => Math.random() - 0.5);
+                
+                this.computerDifficulties = [];
+                const selectedNames = [];
+                
+                for (let i = 0; i < 3; i++) {
+                    selectedNames.push(shuffled[i].name);
+                    this.computerDifficulties.push(shuffled[i].difficulty);
+                }
+                
+                return selectedNames;
+            }
+
+            getComputerComment(computerIndex, action, context = {}) {
+                const name = this.computerNames[computerIndex];
+                
+                // Комментарии при взятии плитки
+                const drawComments = [
+                    `${name}: Хм, интересная плитка...`,
+                    `${name}: Ещё одна в коллекцию!`,
+                    `${name}: Может эта поможет...`,
+                    `${name}: Терпение, терпение...`,
+                    `${name}: Скоро, очень скоро...`
+                ];
+                
+                // Комментарии при выкладывании
+                const placeComments = [
+                    `${name}: Вот так вот!`,
+                    `${name}: Красота!`,
+                    `${name}: Всё по плану 😎`,
+                    `${name}: Элегантно, не правда ли?`,
+                    `${name}: Ну что, впечатляет?`
+                ];
+                
+                // Хитрые намёки (не палят карты, но интригуют)
+                const hintComments = [
+                    `${name}: Вот бы больше ${['красных', 'синих', 'зелёных', 'жёлтых'][Math.floor(Math.random() * 4)]}...`,
+                    `${name}: Интересно, у кого-то есть ${Math.floor(Math.random() * 13) + 1}?`,
+                    `${name}: Кажется, скоро соберу что-то интересное...`,
+                    `${name}: Мне бы ещё одну маленькую плиточку... 🤔`,
+                    `${name}: О, почти готов большой ход!`,
+                    `${name}: Хм, кто-то тут собирает последовательности...`,
+                    `${name}: А у меня тут коллекция растёт!`
+                ];
+                
+                if (action === 'draw') {
+                    // 30% шанс дать намёк вместо обычного комментария
+                    if (Math.random() < 0.3) {
+                        return hintComments[Math.floor(Math.random() * hintComments.length)];
+                    }
+                    return drawComments[Math.floor(Math.random() * drawComments.length)];
+                } else if (action === 'place') {
+                    return placeComments[Math.floor(Math.random() * placeComments.length)];
+                }
+                
+                return '';
+            }
+
+            init() {
+                this.createTiles();
+                this.shufflePool();
+                this.dealInitialTiles();
+                this.render();
+            }
+
+            setComputerCount(count) {
+                this.computerCount = parseInt(count);
+                this.players = ['player'];
+                for (let i = 1; i <= this.computerCount; i++) {
+                    this.players.push(`computer${i}`);
+                }
+                this.newGame();
+            }
+
+            createTiles() {
+                const colors = ['red', 'blue', 'green', 'yellow'];
+                
+                // Создаем по 2 комплекта плиток 1-13 каждого цвета
+                for (let set = 0; set < 2; set++) {
+                    for (let color of colors) {
+                        for (let num = 1; num <= 13; num++) {
+                            this.pool.push(new Tile(num, color));
+                        }
+                    }
+                }
+                
+                // Добавляем 2 джокера
+                this.pool.push(new Tile(0, 'joker', true));
+                this.pool.push(new Tile(0, 'joker', true));
+            }
+
+            shufflePool() {
+                for (let i = this.pool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.pool[i], this.pool[j]] = [this.pool[j], this.pool[i]];
+                }
+            }
+
+            dealInitialTiles() {
+                this.playerHand = [];
+                this.computerHands = [];
+                
+                for (let i = 0; i < this.computerCount; i++) {
+                    this.computerHands.push([]);
+                }
+                
+                // Раздаём по 14 плиток каждому игроку
+                for (let i = 0; i < 14; i++) {
+                    // Игроку
+                    if (this.pool.length > 0) {
+                        this.playerHand.push(this.pool.pop());
+                    }
+                    // Каждому компьютеру
+                    for (let j = 0; j < this.computerCount; j++) {
+                        if (this.pool.length > 0) {
+                            this.computerHands[j].push(this.pool.pop());
+                        }
+                    }
+                }
+                
+                this.sortHand();
+                for (let i = 0; i < this.computerCount; i++) {
+                    this.sortComputerHand(i);
+                }
+            }
+
+            sortHand() {
+                this.playerHand.sort((a, b) => {
+                    if (a.isJoker) return 1;
+                    if (b.isJoker) return -1;
+                    if (a.color !== b.color) return a.color.localeCompare(b.color);
+                    return a.number - b.number;
+                });
+            }
+
+            sortComputerHand(index) {
+                this.computerHands[index].sort((a, b) => {
+                    if (a.isJoker) return 1;
+                    if (b.isJoker) return -1;
+                    if (a.color !== b.color) return a.color.localeCompare(b.color);
+                    return a.number - b.number;
+                });
+            }
+
+            drawTile() {
+                if (this.currentPlayer !== 'player') return;
+                
+                // Проверяем есть ли несохранённые изменения (turnState существует)
+                if (this.turnState) {
+                    this.showMessage('❌ Вы уже выложили плитки на доску! Завершите ход или отмените изменения.', 'error');
+                    return;
+                }
+                
+                // Проверяем валидность доски перед взятием плитки
+                const boardSets = this.getBoardSets();
+                for (let set of boardSets) {
+                    if (set.length > 0 && !this.validateSet(set)) {
+                        this.showMessage('❌ На доске есть неправильные комбинации! Исправьте их перед тем как брать плитку.', 'error');
+                        return;
+                    }
+                }
+                
+                if (this.pool.length === 0) {
+                    // Если в стопке нет плиток, пропускаем ход (пас)
+                    this.showMessage('В стопке нет плиток. Ход пропущен.', 'info');
+                    setTimeout(() => {
+                        this.switchTurn();
+                    }, 1000);
+                    return;
+                }
+                
+                this.playerHand.push(this.pool.pop());
+                this.sortHand();
+                this.showMessage('Вы взяли плитку из стопки', 'info');
+                
+                setTimeout(() => {
+                    this.switchTurn();
+                }, 1000);
+            }
+
+            switchTurn() {
+                const currentIndex = this.players.indexOf(this.currentPlayer);
+                const nextIndex = (currentIndex + 1) % this.players.length;
+                this.currentPlayer = this.players[nextIndex];
+                
+                this.selectedTiles = [];
+                this.turnState = null;
+                this.render();
+                
+                if (this.currentPlayer.startsWith('computer')) {
+                    const computerIndex = parseInt(this.currentPlayer.replace('computer', '')) - 1;
+                    setTimeout(() => this.computerTurn(computerIndex), 1500);
+                }
+            }
+
+            computerTurn(computerIndex) {
+                const name = this.computerNames[computerIndex];
+                const difficulty = this.computerDifficulties[computerIndex];
+                
+                this.showMessage(`Ход ${name}...`, 'info');
+                
+                // Сохраняем состояние доски перед ходом
+                const boardBackup = this.boardGrid.map(r => [...r]);
+                const handBackup = [...this.computerHands[computerIndex]];
+                
+                let smartMove = null;
+                
+                // Умные боты (medium и hard) пытаются докладывать к существующим наборам
+                if (difficulty === 'medium' || difficulty === 'hard') {
+                    smartMove = this.findSmartComputerMoves(computerIndex);
+                }
+                
+                let moveSuccessful = false;
+                
+                // Обработка кражи джокера
+                if (smartMove && smartMove.type === 'stealJoker') {
+                    moveSuccessful = this.executeJokerSteal(computerIndex, smartMove, name);
+                    if (moveSuccessful) return;
+                }
+                
+                // Обработка хода с перестройкой доски
+                if (smartMove && smartMove.type === 'restructure') {
+                    moveSuccessful = this.executeRestructureMove(computerIndex, smartMove, name);
+                    if (moveSuccessful) {
+                        // Проверяем валидность всей доски
+                        if (!this.validateEntireBoard()) {
+                            // Откатываем
+                            this.boardGrid = boardBackup;
+                            this.computerHands[computerIndex] = handBackup;
+                            moveSuccessful = false;
+                            this.render();
+                        } else {
+                            return;
+                        }
+                    }
+                }
+                
+                // Обработка простого хода - добавление к существующему
+                if (smartMove && smartMove.type === 'addToExisting') {
+                    // Выполняем умный ход - добавляем плитку к существующему набору
+                    const tile = smartMove.tile;
+                    const tileIndex = this.computerHands[computerIndex].findIndex(t => t.id === tile.id);
+                    const targetRow = smartMove.targetRow;
+                    const targetCol = smartMove.targetCol;
+                    
+                    // ВАЖНО: Проверяем что целевая ячейка действительно пустая и в пределах доски
+                    if (tileIndex > -1 && 
+                        targetCol >= 0 && targetCol < 21 && 
+                        this.boardGrid[targetRow][targetCol] === null) {
+                        
+                        // Убираем плитку из руки и ставим на доску
+                        this.computerHands[computerIndex].splice(tileIndex, 1);
+                        this.boardGrid[targetRow][targetCol] = tile;
+                        this.firstMeldMade[`computer${computerIndex + 1}`] = true;
+                        
+                        // КРИТИЧНО: Проверяем валидность ВСЕЙ доски
+                        if (!this.validateEntireBoard()) {
+                            // Откатываем ход
+                            this.boardGrid = boardBackup;
+                            this.computerHands[computerIndex] = handBackup;
+                            moveSuccessful = false;
+                        } else {
+                            // Ход валиден, завершаем
+                            moveSuccessful = true;
+                            setTimeout(() => {
+                                if (this.computerHands[computerIndex].length === 0) {
+                                    this.showMessage(`🤖 ${name} выиграл!`, 'error');
+                                    return;
+                                }
+                                const comment = this.getComputerComment(computerIndex, 'place');
+                                this.showMessage(comment, 'info');
+                                setTimeout(() => this.switchTurn(), 1000);
+                            }, 1500);
+                            
+                            this.render();
+                            return;
+                        }
+                    }
+                }
+                
+                // Если умный ход не сработал, пробуем обычные комбинации
+                if (!moveSuccessful) {
+                    const possibleSets = this.findComputerSets(computerIndex);
+                    
+                    if (possibleSets.length > 0 && this.canComputerMakeFirstMeld(computerIndex, possibleSets)) {
+                        // Выкладываем лучшую комбинацию с анимацией
+                        this.placeComputerSets(computerIndex, possibleSets);
+                        
+                        // placeComputerSets теперь сам управляет анимацией и переключением хода
+                        return;
+                    }
+                }
+                
+                // Если не сделали ход, берём плитку
+                this.handleComputerCannotPlace(computerIndex);
+            }
+
+            validateEntireBoard() {
+                // Проверяем каждый набор на доске
+                const sets = this.getBoardSets();
+                
+                for (let set of sets) {
+                    if (set.length > 0) {
+                        // КРИТИЧНО: Набор должен быть минимум 3 плитки
+                        if (set.length < 3) {
+                            console.log('Set too small (< 3):', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                            return false;
+                        }
+                        
+                        // Проверяем что набор валиден
+                        if (!this.validateSet(set)) {
+                            console.log('Invalid set found:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                            return false;
+                        }
+                        
+                        // Дополнительная проверка на дубликаты в последовательности
+                        if (this.isValidRun(set)) {
+                            const numbers = set.filter(t => !t.isJoker).map(t => t.number);
+                            const uniqueNumbers = new Set(numbers);
+                            if (numbers.length !== uniqueNumbers.size) {
+                                console.log('Duplicate numbers in run:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                                return false;
+                            }
+                        }
+                    }
+                }
+                
+                return true;
+            }
+
+            findSmartComputerMoves(computerIndex) {
+                const difficulty = this.computerDifficulties[computerIndex];
+                
+                // НОВАЯ СТРАТЕГИЯ: Пытаемся украсть джокер с доски!
+                if (difficulty === 'medium' || difficulty === 'hard') {
+                    const jokerSteal = this.tryStealJoker(computerIndex);
+                    if (jokerSteal) return jokerSteal;
+                }
+                
+                // Сначала пробуем простые ходы - добавление к существующим наборам
+                const simpleMove = this.findSimpleAddMove(computerIndex);
+                if (simpleMove) return simpleMove;
+                
+                // Для medium и hard ботов пробуем сложные перестановки доски
+                if (difficulty === 'medium' || difficulty === 'hard') {
+                    const advancedMove = this.findAdvancedBoardRestructure(computerIndex);
+                    if (advancedMove) return advancedMove;
+                }
+                
+                return null;
+            }
+
+            tryStealJoker(computerIndex) {
+                // Ищем джокеры на доске и пытаемся их заменить своей плиткой
+                
+                for (let row = 0; row < 7; row++) {
+                    for (let col = 0; col < 21; col++) {
+                        const tile = this.boardGrid[row][col];
+                        
+                        if (tile && tile.isJoker) {
+                            // Нашли джокер! Извлекаем набор
+                            const boardSet = this.extractSetFromPosition(row, col);
+                            if (boardSet.tiles.length < 3) continue;
+                            
+                            // Пропускаем если это не начало набора
+                            if (col !== boardSet.startCol) continue;
+                            
+                            // Определяем какую плитку представляет джокер
+                            const jokerIndex = boardSet.tiles.findIndex(t => t.isJoker);
+                            const missingTile = this.findMissingTileInSet(boardSet.tiles, jokerIndex);
+                            
+                            if (!missingTile) continue;
+                            
+                            // Проверяем есть ли у нас эта плитка
+                            const replacementTile = this.computerHands[computerIndex].find(t => 
+                                !t.isJoker && 
+                                t.number === missingTile.number && 
+                                t.color === missingTile.color
+                            );
+                            
+                            if (replacementTile) {
+                                // У нас есть нужная плитка! Можем украсть джокер!
+                                console.log(`Robot can steal joker by replacing with ${replacementTile.number}${replacementTile.color[0]}`);
+                                
+                                // Проверяем что с этим джокером можем сделать новую комбинацию
+                                const newComboWithJoker = this.findCombinationUsingJoker(computerIndex, tile);
+                                
+                                if (newComboWithJoker) {
+                                    return {
+                                        type: 'stealJoker',
+                                        jokerRow: row,
+                                        jokerCol: boardSet.startCol + jokerIndex,
+                                        replacementTile: replacementTile,
+                                        stolenJoker: tile,
+                                        newCombo: newComboWithJoker
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            findMissingTileInSet(tiles, jokerIndex) {
+                // Определяем что представляет джокер в наборе
+                
+                const isRun = this.isValidRun(tiles);
+                const isGroup = this.isValidGroup(tiles);
+                
+                if (isRun) {
+                    // В последовательности джокер заполняет пропуск
+                    const nonJokers = tiles.filter(t => !t.isJoker).sort((a, b) => a.number - b.number);
+                    const color = nonJokers[0].color;
+                    
+                    // Находим какое число пропущено
+                    for (let i = 0; i < nonJokers.length - 1; i++) {
+                        if (nonJokers[i + 1].number - nonJokers[i].number === 2) {
+                            // Джокер между ними
+                            return { number: nonJokers[i].number + 1, color: color };
+                        }
+                    }
+                    
+                    // Джокер в начале или конце
+                    if (jokerIndex === 0) {
+                        return { number: nonJokers[0].number - 1, color: color };
+                    } else if (jokerIndex === tiles.length - 1) {
+                        return { number: nonJokers[nonJokers.length - 1].number + 1, color: color };
+                    }
+                } else if (isGroup) {
+                    // В группе джокер представляет недостающий цвет
+                    const number = tiles.find(t => !t.isJoker).number;
+                    const usedColors = new Set(tiles.filter(t => !t.isJoker).map(t => t.color));
+                    const allColors = ['red', 'blue', 'green', 'yellow'];
+                    
+                    for (let color of allColors) {
+                        if (!usedColors.has(color)) {
+                            return { number: number, color: color };
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            findCombinationUsingJoker(computerIndex, joker) {
+                // Пытаемся создать комбинацию используя украденный джокер
+                const hand = this.computerHands[computerIndex];
+                
+                // Пробуем создать группу с джокером (2 плитки одного числа + джокер)
+                for (let num = 1; num <= 13; num++) {
+                    const tiles = hand.filter(t => !t.isJoker && t.number === num);
+                    if (tiles.length >= 2) {
+                        const colors = new Set();
+                        const group = [];
+                        for (let tile of tiles) {
+                            if (!colors.has(tile.color)) {
+                                colors.add(tile.color);
+                                group.push(tile);
+                                if (group.length === 2) break;
+                            }
+                        }
+                        if (group.length === 2 && colors.size === 2) {
+                            return {
+                                tiles: group,
+                                type: 'group'
+                            };
+                        }
+                    }
+                }
+                
+                // Пробуем создать последовательность с джокером
+                const colors = ['red', 'blue', 'green', 'yellow'];
+                for (let color of colors) {
+                    const tiles = hand.filter(t => !t.isJoker && t.color === color).sort((a, b) => a.number - b.number);
+                    
+                    for (let i = 0; i < tiles.length - 1; i++) {
+                        const gap = tiles[i + 1].number - tiles[i].number;
+                        if (gap === 2) {
+                            // Джокер заполнит пропуск
+                            return {
+                                tiles: [tiles[i], tiles[i + 1]],
+                                type: 'run'
+                            };
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            findSimpleAddMove(computerIndex) {
+                // Анализируем доску и ищем куда можно доложить плитки
+                for (let row = 0; row < 7; row++) {
+                    for (let col = 0; col < 21; col++) {
+                        if (this.boardGrid[row][col] !== null) {
+                            // Нашли плитку на доске, ищем её набор
+                            const boardSet = this.extractSetFromPosition(row, col);
+                            
+                            // КРИТИЧНО: Добавлять можно только к ВАЛИДНЫМ наборам (≥3 плитки)
+                            if (boardSet.tiles.length < 3) continue;
+                            
+                            // Пропускаем если уже проверяли этот набор
+                            if (col !== boardSet.startCol) continue;
+                            
+                            // Пробуем добавить свои плитки к этому набору
+                            for (let tile of this.computerHands[computerIndex]) {
+                                if (tile.isJoker) continue;
+                                
+                                // Проверяем что это последовательность (run), а не группа
+                                const isRun = this.isValidRun(boardSet.tiles);
+                                const isGroup = this.isValidGroup(boardSet.tiles);
+                                
+                                if (isRun) {
+                                    // Для последовательности пробуем добавить в начало или конец
+                                    const firstNum = boardSet.tiles[0].number;
+                                    const lastNum = boardSet.tiles[boardSet.tiles.length - 1].number;
+                                    const color = boardSet.tiles[0].color;
+                                    
+                                    // Добавить в начало
+                                    if (tile.number === firstNum - 1 && tile.color === color && 
+                                        boardSet.startCol > 0 && this.boardGrid[row][boardSet.startCol - 1] === null) {
+                                        return {
+                                            type: 'addToExisting',
+                                            tile: tile,
+                                            targetRow: row,
+                                            targetCol: boardSet.startCol - 1
+                                        };
+                                    }
+                                    
+                                    // Добавить в конец
+                                    if (tile.number === lastNum + 1 && tile.color === color && 
+                                        boardSet.endCol < 20 && this.boardGrid[row][boardSet.endCol + 1] === null) {
+                                        return {
+                                            type: 'addToExisting',
+                                            tile: tile,
+                                            targetRow: row,
+                                            targetCol: boardSet.endCol + 1
+                                        };
+                                    }
+                                } else if (isGroup) {
+                                    // Для группы проверяем что можем добавить плитку того же числа другого цвета
+                                    const number = boardSet.tiles[0].number;
+                                    const usedColors = new Set(boardSet.tiles.map(t => t.color));
+                                    
+                                    // ВАЖНО: Группа должна быть валидна (≥3 плитки) И ещё не заполнена (≤3)
+                                    if (tile.number === number && !usedColors.has(tile.color) && 
+                                        boardSet.tiles.length === 3 && // Можем добавить 4-ю только к группе из 3
+                                        boardSet.endCol < 20 && this.boardGrid[row][boardSet.endCol + 1] === null) {
+                                        return {
+                                            type: 'addToExisting',
+                                            tile: tile,
+                                            targetRow: row,
+                                            targetCol: boardSet.endCol + 1
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            findAdvancedBoardRestructure(computerIndex) {
+                // Ищем возможность взять плитку с доски и создать новую комбинацию
+                
+                // Перебираем все наборы на доске
+                for (let row = 0; row < 7; row++) {
+                    for (let col = 0; col < 21; col++) {
+                        if (this.boardGrid[row][col] !== null) {
+                            const boardSet = this.extractSetFromPosition(row, col);
+                            if (boardSet.tiles.length < 4) continue; // Можем брать только из наборов ≥4
+                            if (col !== boardSet.startCol) continue; // Пропускаем дубли
+                            
+                            // Пробуем взять плитки с КРАЁВ набора (не из середины)
+                            const edgeTiles = [
+                                { tile: boardSet.tiles[0], position: 'start', index: 0 },
+                                { tile: boardSet.tiles[boardSet.tiles.length - 1], position: 'end', index: boardSet.tiles.length - 1 }
+                            ];
+                            
+                            for (let edge of edgeTiles) {
+                                const takenTile = edge.tile;
+                                const remainingTiles = boardSet.tiles.filter((_, idx) => idx !== edge.index);
+                                
+                                // Проверяем что оставшиеся плитки всё ещё образуют валидный набор
+                                if (remainingTiles.length >= 3 && this.validateSet(remainingTiles)) {
+                                    // Пробуем создать новую комбинацию с взятой плиткой
+                                    const newCombo = this.findCombinationWithTile(computerIndex, takenTile);
+                                    
+                                    if (newCombo && newCombo.tiles.length >= 2) {
+                                        return {
+                                            type: 'restructure',
+                                            sourceRow: row,
+                                            sourceCol: boardSet.startCol + edge.index,
+                                            takenTile: takenTile,
+                                            newCombo: newCombo,
+                                            remainingTiles: remainingTiles,
+                                            originalSet: boardSet,
+                                            edgePosition: edge.position
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            executeJokerSteal(computerIndex, move, name) {
+                // 1. Заменяем джокер на доске своей плиткой
+                const replacementTile = move.replacementTile;
+                const stolenJoker = move.stolenJoker;
+                
+                // Убираем плитку из руки
+                const tileIndex = this.computerHands[computerIndex].findIndex(t => t.id === replacementTile.id);
+                if (tileIndex === -1) {
+                    console.error('Replacement tile not found in hand');
+                    return false;
+                }
+                
+                this.computerHands[computerIndex].splice(tileIndex, 1);
+                
+                // Заменяем джокер на доске
+                this.boardGrid[move.jokerRow][move.jokerCol] = replacementTile;
+                
+                // 2. Добавляем джокер в руку
+                this.computerHands[computerIndex].push(stolenJoker);
+                
+                // 3. Создаём новую комбинацию с украденным джокером
+                const newComboTiles = [stolenJoker, ...move.newCombo.tiles];
+                
+                // Убираем плитки новой комбинации из руки
+                for (let tile of move.newCombo.tiles) {
+                    const idx = this.computerHands[computerIndex].findIndex(t => t.id === tile.id);
+                    if (idx > -1) {
+                        this.computerHands[computerIndex].splice(idx, 1);
+                    }
+                }
+                
+                // 4. Находим место для новой комбинации
+                let targetRow = -1;
+                let targetCol = -1;
+                
+                for (let row = 0; row < 7; row++) {
+                    for (let startCol = 0; startCol <= 21 - newComboTiles.length; startCol++) {
+                        let canPlace = true;
+                        for (let i = 0; i < newComboTiles.length; i++) {
+                            if (this.boardGrid[row][startCol + i] !== null) {
+                                canPlace = false;
+                                break;
+                            }
+                        }
+                        if (canPlace) {
+                            targetRow = row;
+                            targetCol = startCol;
+                            break;
+                        }
+                    }
+                    if (targetRow !== -1) break;
+                }
+                
+                if (targetRow === -1) {
+                    console.error('No space for new combo with stolen joker');
+                    // Откатываем изменения
+                    this.boardGrid[move.jokerRow][move.jokerCol] = stolenJoker;
+                    this.computerHands[computerIndex].push(replacementTile);
+                    for (let tile of move.newCombo.tiles) {
+                        this.computerHands[computerIndex].push(tile);
+                    }
+                    const jokerIdx = this.computerHands[computerIndex].findIndex(t => t.id === stolenJoker.id);
+                    if (jokerIdx > -1) this.computerHands[computerIndex].splice(jokerIdx, 1);
+                    return false;
+                }
+                
+                // 5. Размещаем новую комбинацию
+                for (let i = 0; i < newComboTiles.length; i++) {
+                    this.boardGrid[targetRow][targetCol + i] = newComboTiles[i];
+                }
+                
+                this.firstMeldMade[`computer${computerIndex + 1}`] = true;
+                
+                // 6. Валидация
+                if (!this.validateEntireBoard()) {
+                    console.error('Board invalid after joker steal');
+                    return false;
+                }
+                
+                this.showMessage(`${name} украл джокер! 🃏`, 'info');
+                
+                setTimeout(() => {
+                    if (this.computerHands[computerIndex].length === 0) {
+                        this.showMessage(`🤖 ${name} выиграл!`, 'error');
+                        return;
+                    }
+                    const comment = this.getComputerComment(computerIndex, 'place');
+                    this.showMessage(comment, 'info');
+                    setTimeout(() => this.switchTurn(), 1000);
+                }, 1500);
+                
+                this.render();
+                return true;
+            }
+
+            executeRestructureMove(computerIndex, move, name) {
+                // 1. Берём плитку с доски
+                const takenTile = this.boardGrid[move.sourceRow][move.sourceCol];
+                if (!takenTile) return false;
+                
+                this.boardGrid[move.sourceRow][move.sourceCol] = null;
+                
+                // 2. Перестраиваем оставшиеся плитки на доске
+                const oldSet = move.originalSet;
+                const remaining = move.remainingTiles;
+                
+                // Очищаем старые позиции
+                for (let i = 0; i < oldSet.tiles.length; i++) {
+                    this.boardGrid[move.sourceRow][oldSet.startCol + i] = null;
+                }
+                
+                // Размещаем оставшиеся плитки
+                for (let i = 0; i < remaining.length; i++) {
+                    this.boardGrid[move.sourceRow][oldSet.startCol + i] = remaining[i];
+                }
+                
+                // 3. Создаём новую комбинацию
+                const newComboTiles = [takenTile, ...move.newCombo.tiles];
+                newComboTiles.sort((a, b) => a.number - b.number);
+                
+                // Убираем плитки из руки компьютера
+                for (let tile of move.newCombo.tiles) {
+                    const idx = this.computerHands[computerIndex].findIndex(t => t.id === tile.id);
+                    if (idx > -1) {
+                        this.computerHands[computerIndex].splice(idx, 1);
+                    }
+                }
+                
+                // 4. Находим пустую строку для новой комбинации
+                let targetRow = -1;
+                for (let row = 0; row < 7; row++) {
+                    let isEmpty = true;
+                    for (let col = 0; col < 21; col++) {
+                        if (this.boardGrid[row][col] !== null) {
+                            isEmpty = false;
+                            break;
+                        }
+                    }
+                    if (isEmpty) {
+                        targetRow = row;
+                        break;
+                    }
+                }
+                
+                // Если нет пустой строки, ищем место в конце существующих рядов
+                if (targetRow === -1) {
+                    for (let row = 0; row < 7; row++) {
+                        let lastCol = -1;
+                        for (let col = 20; col >= 0; col--) {
+                            if (this.boardGrid[row][col] !== null) {
+                                lastCol = col;
+                                break;
+                            }
+                        }
+                        if (lastCol < 18) { // Достаточно места для комбинации
+                            targetRow = row;
+                            break;
+                        }
+                    }
+                }
+                
+                if (targetRow === -1) return false; // Нет места
+                
+                // 5. Размещаем новую комбинацию
+                for (let i = 0; i < newComboTiles.length; i++) {
+                    this.boardGrid[targetRow][i] = newComboTiles[i];
+                }
+                
+                this.firstMeldMade[`computer${computerIndex + 1}`] = true;
+                
+                // 6. Валидация всей доски
+                const allSets = this.getBoardSets();
+                let allValid = true;
+                for (let set of allSets) {
+                    if (set.length > 0 && !this.validateSet(set)) {
+                        allValid = false;
+                        break;
+                    }
+                }
+                
+                if (!allValid) {
+                    // Откатываем всё назад - слишком сложно, просто возвращаем false
+                    return false;
+                }
+                
+                // Успех!
+                setTimeout(() => {
+                    if (this.computerHands[computerIndex].length === 0) {
+                        this.showMessage(`🤖 ${name} выиграл!`, 'error');
+                        return;
+                    }
+                    const comment = this.getComputerComment(computerIndex, 'place');
+                    this.showMessage(comment, 'info');
+                    setTimeout(() => this.switchTurn(), 1000);
+                }, 1500);
+                
+                this.render();
+                return true;
+            }
+
+            findCombinationWithTile(computerIndex, takenTile) {
+                // Пробуем создать последовательность с взятой плиткой
+                const hand = this.computerHands[computerIndex];
+                
+                // Ищем плитки того же цвета
+                const sameColorTiles = hand.filter(t => !t.isJoker && t.color === takenTile.color);
+                
+                // Пробуем собрать последовательность
+                for (let tile1 of sameColorTiles) {
+                    for (let tile2 of sameColorTiles) {
+                        if (tile1.id === tile2.id) continue;
+                        
+                        const combo = [takenTile, tile1, tile2].sort((a, b) => a.number - b.number);
+                        if (this.isValidRun(combo)) {
+                            return {
+                                tiles: [tile1, tile2],
+                                type: 'run'
+                            };
+                        }
+                    }
+                }
+                
+                // Пробуем собрать группу
+                const sameNumberTiles = hand.filter(t => !t.isJoker && t.number === takenTile.number);
+                if (sameNumberTiles.length >= 2) {
+                    const colors = new Set([takenTile.color]);
+                    const groupTiles = [];
+                    
+                    for (let tile of sameNumberTiles) {
+                        if (!colors.has(tile.color)) {
+                            colors.add(tile.color);
+                            groupTiles.push(tile);
+                            if (groupTiles.length === 2) break;
+                        }
+                    }
+                    
+                    if (groupTiles.length === 2) {
+                        return {
+                            tiles: groupTiles,
+                            type: 'group'
+                        };
+                    }
+                }
+                
+                return null;
+            }
+
+            extractSetFromPosition(row, col) {
+                const tiles = [];
+                let startCol = col;
+                let endCol = col;
+                
+                // Идём влево до начала набора или пустой ячейки
+                while (startCol > 0 && this.boardGrid[row][startCol - 1] !== null) {
+                    startCol--;
+                }
+                
+                // Идём вправо до конца набора или пустой ячейки
+                while (endCol < 20 && this.boardGrid[row][endCol + 1] !== null) {
+                    endCol++;
+                }
+                
+                // Собираем плитки - только непрерывные
+                for (let c = startCol; c <= endCol; c++) {
+                    if (this.boardGrid[row][c] !== null) {
+                        tiles.push(this.boardGrid[row][c]);
+                    } else {
+                        // Если встретили пустую ячейку внутри - набор разорван, берём только до неё
+                        break;
+                    }
+                }
+                
+                return { tiles, startCol, endCol: startCol + tiles.length - 1 };
+            }
+
+            findCombinationsWithBoardTiles(computerIndex) {
+                // Пока отключаем эту сложную логику
+                return null;
+            }
+
+            findBoardGroups() {
+                const groups = [];
+                
+                for (let row = 0; row < 7; row++) {
+                    let col = 0;
+                    while (col < 21) {
+                        if (this.boardGrid[row][col] !== null) {
+                            const set = this.extractSetFromPosition(row, col);
+                            if (set.tiles.length >= 3 && this.isValidGroup(set.tiles)) {
+                                groups.push({
+                                    row: row,
+                                    startCol: set.startCol,
+                                    endCol: set.endCol,
+                                    tiles: set.tiles
+                                });
+                            }
+                            col = set.endCol + 1;
+                        } else {
+                            col++;
+                        }
+                    }
+                }
+                
+                return groups;
+            }
+
+            findComputerSets(computerIndex) {
+                const sets = [];
+                const used = new Set();
+                
+                // КРИТИЧНО: Проверяем что в руке нет дубликатов плиток
+                const hand = this.computerHands[computerIndex];
+                const handIds = hand.map(t => t.id);
+                const uniqueHandIds = new Set(handIds);
+                
+                if (handIds.length !== uniqueHandIds.size) {
+                    console.error('DUPLICATE TILES IN HAND!', hand.map(t => `${t.number}${t.color[0]}(${t.id})`));
+                    // Удаляем дубликаты
+                    const seenIds = new Set();
+                    this.computerHands[computerIndex] = hand.filter(t => {
+                        if (seenIds.has(t.id)) {
+                            console.error('Removing duplicate:', t.id);
+                            return false;
+                        }
+                        seenIds.add(t.id);
+                        return true;
+                    });
+                }
+                
+                // Находим джокеры
+                const jokers = this.computerHands[computerIndex].filter(t => t.isJoker && !used.has(t.id));
+                
+                // Ищем группы (одинаковые числа разных цветов)
+                for (let num = 1; num <= 13; num++) {
+                    const tiles = this.computerHands[computerIndex].filter(t => !used.has(t.id) && !t.isJoker && t.number === num);
+                    
+                    // Если есть 2 плитки + джокер = группа из 3
+                    if (tiles.length >= 2 && jokers.some(j => !used.has(j.id))) {
+                        const colors = new Set();
+                        const group = [];
+                        for (let tile of tiles) {
+                            if (!colors.has(tile.color)) {
+                                colors.add(tile.color);
+                                group.push(tile);
+                            }
+                        }
+                        if (group.length === 2 && colors.size === 2) {
+                            const joker = jokers.find(j => !used.has(j.id));
+                            if (joker) {
+                                group.push(joker);
+                                
+                                // Проверка уникальности ID
+                                const groupIds = group.map(t => t.id);
+                                if (new Set(groupIds).size === groupIds.length) {
+                                    sets.push(group);
+                                    group.forEach(t => used.add(t.id));
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Обычные группы без джокера
+                    if (tiles.length >= 3) {
+                        const colors = new Set();
+                        const group = [];
+                        for (let tile of tiles) {
+                            if (!colors.has(tile.color)) {
+                                colors.add(tile.color);
+                                group.push(tile);
+                                if (group.length === 3) break;
+                            }
+                        }
+                        if (group.length === 3 && colors.size === 3) {
+                            // Проверка уникальности ID
+                            const groupIds = group.map(t => t.id);
+                            if (new Set(groupIds).size === groupIds.length) {
+                                sets.push(group);
+                                group.forEach(t => used.add(t.id));
+                            } else {
+                                console.error('Duplicate IDs in group:', groupIds);
+                            }
+                        }
+                    }
+                }
+                
+                // Ищем последовательности
+                const colors = ['red', 'blue', 'green', 'yellow'];
+                for (let color of colors) {
+                    const tiles = this.computerHands[computerIndex]
+                        .filter(t => !used.has(t.id) && !t.isJoker && t.color === color)
+                        .sort((a, b) => a.number - b.number);
+                    
+                    for (let i = 0; i < tiles.length; i++) {
+                        if (jokers.some(j => !used.has(j.id))) {
+                            if (i < tiles.length - 1) {
+                                const gap = tiles[i + 1].number - tiles[i].number;
+                                if (gap === 2) {
+                                    const joker = jokers.find(j => !used.has(j.id));
+                                    if (joker) {
+                                        const run = [tiles[i], joker, tiles[i + 1]];
+                                        const runIds = run.map(t => t.id);
+                                        if (new Set(runIds).size === runIds.length) {
+                                            sets.push(run);
+                                            run.forEach(t => used.add(t.id));
+                                            i++;
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (i < tiles.length - 2) {
+                            if (tiles[i + 1].number === tiles[i].number + 1 &&
+                                tiles[i + 2].number === tiles[i].number + 2) {
+                                const run = [tiles[i], tiles[i + 1], tiles[i + 2]];
+                                const runIds = run.map(t => t.id);
+                                if (new Set(runIds).size === runIds.length) {
+                                    sets.push(run);
+                                    run.forEach(t => used.add(t.id));
+                                    i += 2;
+                                } else {
+                                    console.error('Duplicate IDs in run:', runIds);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Финальная проверка всех наборов
+                console.log('Robot sets found:', sets.length);
+                for (let set of sets) {
+                    console.log('Set:', set.map(t => `${t.number}${t.color[0]}(${t.id})`).join(' '));
+                }
+                
+                return sets;
+            }
+
+            canComputerMakeFirstMeld(computerIndex, sets) {
+                if (this.firstMeldMade[`computer${computerIndex + 1}`]) return true;
+                
+                const totalValue = sets.reduce((sum, set) => 
+                    sum + this.calculateSetValue(set), 0);
+                
+                return totalValue >= 30;
+            }
+
+            placeComputerSets(computerIndex, sets) {
+                const validSets = sets.filter(set => set.length >= 3 && this.validateSet(set));
+                
+                if (validSets.length === 0) {
+                    console.log('No valid sets to place');
+                    this.handleComputerCannotPlace(computerIndex);
+                    return;
+                }
+                
+                console.log('Robot has', validSets.length, 'valid sets to place');
+                
+                const tilesToPlace = [];
+                const usedPositions = new Set(); // Отслеживаем занятые позиции на доске
+                const usedTileIds = new Set(); // КРИТИЧНО: отслеживаем уже использованные плитки!
+                
+                // Размещаем каждый набор ОТДЕЛЬНО
+                for (let set of validSets) {
+                    console.log('Trying to place set:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                    
+                    // Проверяем что все плитки в наборе уникальны и не использованы
+                    let setValid = true;
+                    for (let tile of set) {
+                        if (usedTileIds.has(tile.id)) {
+                            console.error('Tile already used:', tile.id);
+                            setValid = false;
+                            break;
+                        }
+                    }
+                    
+                    if (!setValid) {
+                        console.log('Skipping set with already used tiles');
+                        continue;
+                    }
+                    
+                    let placed = false;
+                    
+                    // Ищем место для этого набора
+                    for (let row = 0; row < 7; row++) {
+                        for (let startCol = 0; startCol <= 21 - set.length - 1; startCol++) {
+                            // Проверяем что есть место для набора + 1 gap
+                            let canPlace = true;
+                            
+                            for (let i = 0; i < set.length + 1; i++) { // +1 для gap
+                                const posKey = `${row}-${startCol + i}`;
+                                if (this.boardGrid[row][startCol + i] !== null || usedPositions.has(posKey)) {
+                                    canPlace = false;
+                                    break;
+                                }
+                            }
+                            
+                            if (canPlace) {
+                                // Размещаем набор (без последней ячейки - это gap)
+                                for (let i = 0; i < set.length; i++) {
+                                    const posKey = `${row}-${startCol + i}`;
+                                    tilesToPlace.push({ 
+                                        tile: set[i], 
+                                        row: row, 
+                                        col: startCol + i 
+                                    });
+                                    usedPositions.add(posKey);
+                                    usedTileIds.add(set[i].id); // Помечаем плитку как использованную
+                                }
+                                // Резервируем gap
+                                usedPositions.add(`${row}-${startCol + set.length}`);
+                                
+                                console.log('Placed at row', row, 'col', startCol);
+                                placed = true;
+                                break;
+                            }
+                        }
+                        
+                        if (placed) break;
+                    }
+                    
+                    if (!placed) {
+                        console.log('Could not find space for set:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                    }
+                }
+                
+                if (tilesToPlace.length === 0) {
+                    console.log('No tiles placed - drawing tile instead');
+                    this.handleComputerCannotPlace(computerIndex);
+                    return;
+                }
+                
+                console.log('Total tiles to place:', tilesToPlace.length);
+                console.log('Tile IDs:', tilesToPlace.map(t => t.tile.id));
+                
+                // Анимированное размещение плиток по одной
+                this.placeTilesWithAnimation(computerIndex, tilesToPlace, 0);
+            }
+
+            handleComputerCannotPlace(computerIndex) {
+                const name = this.computerNames[computerIndex];
+                
+                if (this.pool.length > 0) {
+                    this.computerHands[computerIndex].push(this.pool.pop());
+                    this.sortComputerHand(computerIndex);
+                    const comment = this.getComputerComment(computerIndex, 'draw');
+                    this.showMessage(comment, 'info');
+                } else {
+                    this.showMessage(`${name} пропускает ход`, 'info');
+                }
+                
+                this.render();
+                setTimeout(() => this.switchTurn(), 1500);
+            }
+
+            placeTilesWithAnimation(computerIndex, tilesToPlace, index) {
+                if (index >= tilesToPlace.length) {
+                    // Все плитки размещены - проверяем валидность доски
+                    if (!this.validateEntireBoard()) {
+                        console.log('Board invalid after placement, this should not happen!');
+                    }
+                    
+                    this.firstMeldMade[`computer${computerIndex + 1}`] = true;
+                    
+                    setTimeout(() => {
+                        const name = this.computerNames[computerIndex];
+                        if (this.computerHands[computerIndex].length === 0) {
+                            this.showMessage(`🤖 ${name} выиграл!`, 'error');
+                            return;
+                        }
+                        const comment = this.getComputerComment(computerIndex, 'place');
+                        this.showMessage(comment, 'info');
+                        setTimeout(() => this.switchTurn(), 1000);
+                    }, 500);
+                    return;
+                }
+                
+                // Размещаем одну плитку
+                const { tile, row, col } = tilesToPlace[index];
+                
+                // КРИТИЧНО: Проверяем что ячейка пустая!
+                if (this.boardGrid[row][col] !== null) {
+                    console.error(`Cell [${row}][${col}] is already occupied! Skipping tile placement.`);
+                    // Пропускаем эту плитку и переходим к следующей
+                    setTimeout(() => {
+                        this.placeTilesWithAnimation(computerIndex, tilesToPlace, index + 1);
+                    }, 100);
+                    return;
+                }
+                
+                const tileIndex = this.computerHands[computerIndex].findIndex(t => t.id === tile.id);
+                
+                if (tileIndex > -1) {
+                    this.computerHands[computerIndex].splice(tileIndex, 1);
+                    this.boardGrid[row][col] = tile;
+                    
+                    // Добавляем CSS класс для анимации
+                    this.render();
+                    
+                    // Находим элемент плитки и добавляем анимацию
+                    setTimeout(() => {
+                        const gridCell = document.querySelector(`#board-grid`);
+                        if (gridCell) {
+                            const cellIndex = row * 21 + col;
+                            const cell = gridCell.children[cellIndex];
+                            if (cell) {
+                                cell.classList.add('tile-placed-animation');
+                                setTimeout(() => {
+                                    cell.classList.remove('tile-placed-animation');
+                                }, 400);
+                            }
+                        }
+                    }, 50);
+                    
+                    // Размещаем следующую плитку через задержку
+                    setTimeout(() => {
+                        this.placeTilesWithAnimation(computerIndex, tilesToPlace, index + 1);
+                    }, 400);
+                } else {
+                    // Плитка не найдена в руке - пропускаем
+                    console.error(`Tile not found in hand:`, tile);
+                    setTimeout(() => {
+                        this.placeTilesWithAnimation(computerIndex, tilesToPlace, index + 1);
+                    }, 100);
+                }
+            }
+
+            selectTile(tileId, location) {
+                const index = this.selectedTiles.findIndex(t => t.tileId === tileId);
+                
+                if (index > -1) {
+                    this.selectedTiles.splice(index, 1);
+                } else {
+                    this.selectedTiles.push({ tileId, location });
+                }
+                
+                this.render();
+            }
+
+            placeTileOnGrid(row, col) {
+                if (this.selectedTiles.length !== 1) {
+                    this.showMessage('Выберите одну плитку для размещения', 'info');
+                    return;
+                }
+
+                if (this.boardGrid[row][col] !== null) {
+                    this.showMessage('Эта ячейка уже занята', 'error');
+                    return;
+                }
+
+                // Сохраняем состояние для отмены
+                if (!this.turnState) {
+                    this.turnState = {
+                        hand: [...this.playerHand],
+                        board: this.boardGrid.map(r => [...r])
+                    };
+                }
+
+                const selected = this.selectedTiles[0];
+                
+                if (selected.location === 'hand') {
+                    const tileIndex = this.playerHand.findIndex(t => t.id === selected.tileId);
+                    if (tileIndex > -1) {
+                        const tile = this.playerHand.splice(tileIndex, 1)[0];
+                        this.boardGrid[row][col] = tile;
+                    }
+                } else if (selected.location.startsWith('grid-')) {
+                    const [oldRow, oldCol] = selected.location.split('-').slice(1).map(Number);
+                    const tile = this.boardGrid[oldRow][oldCol];
+                    this.boardGrid[oldRow][oldCol] = null;
+                    this.boardGrid[row][col] = tile;
+                }
+
+                this.selectedTiles = [];
+                this.render();
+            }
+
+            handleDrop(selectedTilesData, targetRow, targetCol) {
+                // Парсим данные о выбранных плитках
+                let tilesToMove;
+                try {
+                    tilesToMove = JSON.parse(selectedTilesData);
+                } catch (e) {
+                    // Обратная совместимость со старым форматом
+                    return;
+                }
+
+                // Сохраняем состояние для отмены
+                if (!this.turnState) {
+                    this.turnState = {
+                        hand: [...this.playerHand],
+                        board: this.boardGrid.map(r => [...r])
+                    };
+                }
+
+                // Проверяем, достаточно ли места для размещения всех плиток
+                let canPlace = true;
+                for (let i = 0; i < tilesToMove.length; i++) {
+                    if (targetCol + i >= 21 || this.boardGrid[targetRow][targetCol + i] !== null) {
+                        canPlace = false;
+                        break;
+                    }
+                }
+
+                if (!canPlace) {
+                    this.showMessage('Недостаточно места для размещения всех выбранных плиток', 'error');
+                    return;
+                }
+
+                // Сначала собираем все плитки
+                const tiles = [];
+                for (let tileData of tilesToMove) {
+                    let tile = null;
+                    
+                    if (tileData.location === 'hand') {
+                        const tileIndex = this.playerHand.findIndex(t => t.id === tileData.tileId);
+                        if (tileIndex > -1) {
+                            tile = this.playerHand[tileIndex];
+                        }
+                    } else if (tileData.location.startsWith('grid-')) {
+                        const [row, col] = tileData.location.split('-').slice(1).map(Number);
+                        tile = this.boardGrid[row][col];
+                    }
+                    
+                    if (tile) {
+                        tiles.push({ tile, source: tileData.location });
+                    }
+                }
+
+                // Удаляем плитки из исходных позиций
+                for (let { tile, source } of tiles) {
+                    if (source === 'hand') {
+                        const tileIndex = this.playerHand.findIndex(t => t.id === tile.id);
+                        if (tileIndex > -1) {
+                            this.playerHand.splice(tileIndex, 1);
+                        }
+                    } else if (source.startsWith('grid-')) {
+                        const [row, col] = source.split('-').slice(1).map(Number);
+                        this.boardGrid[row][col] = null;
+                    }
+                }
+
+                // Размещаем плитки на новых позициях
+                for (let i = 0; i < tiles.length; i++) {
+                    this.boardGrid[targetRow][targetCol + i] = tiles[i].tile;
+                }
+
+                // Очищаем выделение после успешного перемещения
+                this.selectedTiles = [];
+                this.render();
+            }
+
+            removeTileFromGrid(row, col) {
+                if (this.boardGrid[row][col] === null) return;
+
+                if (!this.turnState) {
+                    this.turnState = {
+                        hand: [...this.playerHand],
+                        board: this.boardGrid.map(r => [...r])
+                    };
+                }
+
+                const tile = this.boardGrid[row][col];
+                this.boardGrid[row][col] = null;
+                this.playerHand.push(tile);
+                this.sortHand();
+                this.render();
+            }
+
+            getBoardSets() {
+                const sets = [];
+                
+                // Проверяем горизонтальные ряды
+                for (let row = 0; row < 7; row++) {
+                    let currentSet = [];
+                    for (let col = 0; col < 21; col++) {
+                        if (this.boardGrid[row][col] !== null) {
+                            currentSet.push(this.boardGrid[row][col]);
+                        } else if (currentSet.length > 0) {
+                            sets.push([...currentSet]);
+                            currentSet = [];
+                        }
+                    }
+                    if (currentSet.length > 0) {
+                        sets.push(currentSet);
+                    }
+                }
+                
+                return sets;
+            }
+
+            validateSet(tiles) {
+                if (tiles.length < 3) return false;
+
+                // Проверка на группу (одинаковые числа, разные цвета)
+                const isGroup = this.isValidGroup(tiles);
+                
+                // Проверка на последовательность (одинаковый цвет, последовательные числа)
+                const isRun = this.isValidRun(tiles);
+
+                return isGroup || isRun;
+            }
+
+            isValidGroup(tiles) {
+                const nonJokerTiles = tiles.filter(t => !t.isJoker);
+                if (nonJokerTiles.length === 0) return false;
+
+                const number = nonJokerTiles[0].number;
+                const colors = new Set();
+
+                for (let tile of nonJokerTiles) {
+                    if (tile.number !== number) return false;
+                    if (colors.has(tile.color)) return false;
+                    colors.add(tile.color);
+                }
+
+                return tiles.length >= 3 && tiles.length <= 4;
+            }
+
+            isValidRun(tiles) {
+                if (tiles.length < 3) return false;
+                
+                const nonJokerTiles = tiles.filter(t => !t.isJoker);
+                if (nonJokerTiles.length === 0) return false;
+
+                // Все не-джокерные плитки должны быть одного цвета
+                const color = nonJokerTiles[0].color;
+                for (let tile of nonJokerTiles) {
+                    if (tile.color !== color) return false;
+                }
+
+                // Сортируем не-джокерные плитки по номеру
+                const sortedNonJokers = [...nonJokerTiles].sort((a, b) => a.number - b.number);
+                
+                // Проверяем что можем заполнить пропуски джокерами
+                const jokerCount = tiles.length - nonJokerTiles.length;
+                let jokersNeeded = 0;
+                
+                for (let i = 0; i < sortedNonJokers.length - 1; i++) {
+                    const gap = sortedNonJokers[i + 1].number - sortedNonJokers[i].number - 1;
+                    if (gap < 0) return false; // Дубликат числа
+                    jokersNeeded += gap;
+                }
+                
+                // Проверяем что джокеров достаточно для заполнения всех пропусков
+                if (jokersNeeded > jokerCount) return false;
+                
+                // Проверяем что последовательность не выходит за границы (1-13)
+                const minNumber = sortedNonJokers[0].number;
+                const maxNumber = sortedNonJokers[sortedNonJokers.length - 1].number;
+                const totalSpan = maxNumber - minNumber + 1;
+                
+                // Общая длина последовательности должна совпадать с количеством плиток
+                if (totalSpan !== tiles.length) {
+                    // Джокеры могут быть в начале или конце
+                    const extraJokers = jokerCount - jokersNeeded;
+                    // Проверяем что можем добавить джокеров в начало/конец без выхода за 1-13
+                    if (minNumber - extraJokers < 1 && maxNumber + extraJokers > 13) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            calculateSetValue(tiles) {
+                return tiles.reduce((sum, tile) => sum + (tile.isJoker ? 0 : tile.number), 0);
+            }
+
+            endTurn() {
+                if (this.currentPlayer !== 'player') return;
+                
+                // Проверяем что игрок что-то выложил (turnState существует)
+                if (!this.turnState) {
+                    this.showMessage('❌ Сначала выложите плитки или возьмите плитку из стопки!', 'error');
+                    return;
+                }
+                
+                const sets = this.getBoardSets();
+
+                // Валидация всех рядов на доске
+                let allValid = true;
+                let totalValue = 0;
+
+                for (let set of sets) {
+                    if (!this.validateSet(set)) {
+                        this.showMessage('Один или несколько рядов на поле некорректны!', 'error');
+                        allValid = false;
+                        break;
+                    }
+                    totalValue += this.calculateSetValue(set);
+                }
+
+                if (!allValid) return;
+
+                // Проверка первого выкладывания
+                if (!this.firstMeldMade.player && sets.length > 0) {
+                    if (totalValue < 30) {
+                        this.showMessage('Для первого хода нужно выложить плитки на сумму минимум 30 очков!', 'error');
+                        return;
+                    }
+                    this.firstMeldMade.player = true;
+                    this.showMessage('Отличный первый ход! Теперь можно выкладывать любые комбинации.', 'success');
+                }
+
+                // Проверка победы
+                if (this.playerHand.length === 0) {
+                    this.showMessage('🎉 Поздравляем! Вы выиграли! 🎉', 'success');
+                    return;
+                }
+
+                this.turnState = null;
+                this.showMessage('Ход завершен!', 'success');
+                
+                setTimeout(() => this.switchTurn(), 1000);
+            }
+
+            undoMove() {
+                if (this.turnState) {
+                    this.playerHand = [...this.turnState.hand];
+                    this.boardGrid = this.turnState.board.map(r => [...r]);
+                    this.turnState = null;
+                    this.selectedTiles = [];
+                    this.showMessage('Ход отменен', 'info');
+                    this.render();
+                } else {
+                    this.showMessage('Нечего отменять', 'info');
+                }
+            }
+
+            newGame() {
+                console.log('Starting new game...');
+                
+                // Полный сброс всех переменных
+                this.pool = [];
+                this.playerHand = [];
+                this.computerHands = [];
+                for (let i = 0; i < this.computerCount; i++) {
+                    this.computerHands.push([]);
+                }
+                this.computerNames = this.generateComputerNames(); // Новые имена
+                this.boardGrid = Array(7).fill(null).map(() => Array(21).fill(null));
+                this.selectedTiles = [];
+                this.firstMeldMade = { player: false, computer1: false, computer2: false, computer3: false };
+                this.turnState = null;
+                this.currentPlayer = 'player';
+                
+                console.log('Variables reset');
+                
+                // Создаём новые плитки и раздаём их
+                this.createTiles();
+                console.log('Tiles created:', this.pool.length);
+                
+                this.shufflePool();
+                console.log('Pool shuffled');
+                
+                this.dealInitialTiles();
+                console.log('Tiles dealt - Player:', this.playerHand.length, 'Computers:', this.computerHands.map(h => h.length), 'Pool:', this.pool.length);
+                
+                // Перерисовываем всё
+                this.render();
+                console.log('Rendered');
+                
+                this.showMessage('Новая игра начата! Удачи!', 'success');
+            }
+
+            showMessage(text, type = 'info') {
+                const messageEl = document.getElementById('message');
+                messageEl.textContent = text;
+                messageEl.className = `message ${type}`;
+                messageEl.style.display = 'block';
+                
+                setTimeout(() => {
+                    messageEl.style.display = 'none';
+                }, 3000);
+            }
+
+            renderTile(tile, location) {
+                const div = this.createTileElement(tile);
+                div.draggable = true;
+                
+                const isSelected = this.selectedTiles.some(t => t.tileId === tile.id);
+                if (isSelected) {
+                    div.classList.add('selected');
+                }
+                
+                // Drag and drop события
+                div.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    
+                    // Если плитка не выбрана, выбираем только её (но не перерисовываем сразу)
+                    if (!isSelected) {
+                        this.selectedTiles = [{ tileId: tile.id, location }];
+                    }
+                    
+                    // Передаём информацию о всех выбранных плитках
+                    const selectedData = this.selectedTiles.map(t => ({
+                        tileId: t.tileId,
+                        location: t.location
+                    }));
+                    e.dataTransfer.setData('selectedTiles', JSON.stringify(selectedData));
+                    
+                    // Создаём визуальное представление всех перемещаемых плиток
+                    const dragContainer = document.createElement('div');
+                    dragContainer.style.position = 'absolute';
+                    dragContainer.style.top = '-10000px';
+                    dragContainer.style.display = 'flex';
+                    dragContainer.style.gap = '5px';
+                    dragContainer.style.background = 'transparent';
+                    
+                    // Добавляем визуальные копии всех выбранных плиток
+                    for (let selectedTile of this.selectedTiles) {
+                        let tileObj = null;
+                        
+                        if (selectedTile.location === 'hand') {
+                            tileObj = this.playerHand.find(t => t.id === selectedTile.tileId);
+                        } else if (selectedTile.location.startsWith('grid-')) {
+                            const [row, col] = selectedTile.location.split('-').slice(1).map(Number);
+                            tileObj = this.boardGrid[row][col];
+                        }
+                        
+                        if (tileObj) {
+                            const tileClone = this.createTileElement(tileObj);
+                            tileClone.style.opacity = '0.9';
+                            dragContainer.appendChild(tileClone);
+                        }
+                    }
+                    
+                    document.body.appendChild(dragContainer);
+                    e.dataTransfer.setDragImage(dragContainer, 0, 0);
+                    
+                    // Удаляем временный контейнер после начала перетаскивания
+                    setTimeout(() => {
+                        document.body.removeChild(dragContainer);
+                    }, 0);
+                    
+                    div.classList.add('dragging');
+                });
+                
+                div.addEventListener('dragend', (e) => {
+                    div.classList.remove('dragging');
+                });
+                
+                // Оставляем клик для выделения
+                div.onclick = () => this.selectTile(tile.id, location);
+                
+                return div;
+            }
+
+            createTileElement(tile) {
+                const div = document.createElement('div');
+                div.className = `tile ${tile.color}`;
+                
+                if (!tile.isJoker) {
+                    div.setAttribute('data-number', tile.number);
+                } else {
+                    // Джокер отображается через CSS ::before
+                }
+                
+                return div;
+            }
+
+            render() {
+                // Обновляем информацию
+                document.getElementById('pool-count').textContent = this.pool.length;
+                document.getElementById('hand-count').textContent = this.playerHand.length;
+                
+                let currentPlayerText = 'Ваш ход ✓';
+                if (this.currentPlayer.startsWith('computer')) {
+                    const computerNum = parseInt(this.currentPlayer.replace('computer', '')) - 1;
+                    currentPlayerText = `Ход: ${this.computerNames[computerNum]}`;
+                }
+                document.getElementById('current-player').textContent = currentPlayerText;
+                document.getElementById('first-meld-status').textContent = 
+                    this.firstMeldMade.player ? 'Выполнен ✓' : 'Требуется 30+ очков';
+
+                // Рендерим стойки компьютеров
+                const computerRacksContainer = document.getElementById('computer-racks-container');
+                computerRacksContainer.innerHTML = '';
+                
+                for (let i = 0; i < this.computerCount; i++) {
+                    const rackDiv = document.createElement('div');
+                    rackDiv.className = 'player-rack';
+                    
+                    if (this.currentPlayer === `computer${i + 1}`) {
+                        rackDiv.classList.add('active');
+                    }
+                    
+                    const difficultyEmoji = {
+                        'easy': '😊',
+                        'medium': '🤔',
+                        'hard': '😎'
+                    };
+                    
+                    const difficultyText = {
+                        'easy': 'лёгкий',
+                        'medium': 'средний',
+                        'hard': 'сложный'
+                    };
+                    
+                    const difficulty = this.computerDifficulties[i] || 'easy';
+                    
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'rack-title';
+                    titleDiv.textContent = `${difficultyEmoji[difficulty]} ${this.computerNames[i]}`;
+                    titleDiv.title = `Уровень: ${difficultyText[difficulty]}`;
+                    
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'computer-info';
+                    
+                    const countSpan = document.createElement('span');
+                    countSpan.className = 'tile-count';
+                    countSpan.textContent = `${this.computerHands[i].length} плиток`;
+                    
+                    infoDiv.appendChild(countSpan);
+                    
+                    rackDiv.appendChild(titleDiv);
+                    rackDiv.appendChild(infoDiv);
+                    computerRacksContainer.appendChild(rackDiv);
+                }
+
+                // Рендерим плитки игрока
+                const handContainer = document.getElementById('player-tiles');
+                handContainer.innerHTML = '';
+                
+                for (let tile of this.playerHand) {
+                    handContainer.appendChild(this.renderTile(tile, 'hand'));
+                }
+
+                // Подсветка активного игрока
+                const playerRack = document.querySelector('#player-tiles').parentElement;
+                
+                if (this.currentPlayer === 'player') {
+                    playerRack.classList.add('active');
+                } else {
+                    playerRack.classList.remove('active');
+                }
+
+                // Рендерим сетку доски
+                const gridContainer = document.getElementById('board-grid');
+                gridContainer.innerHTML = '';
+                
+                for (let row = 0; row < 7; row++) {
+                    for (let col = 0; col < 21; col++) {
+                        const cell = document.createElement('div');
+                        const cellInner = document.createElement('div');
+                        cellInner.className = 'grid-cell-inner';
+                        
+                        if (this.boardGrid[row][col] !== null) {
+                            const tile = this.boardGrid[row][col];
+                            const tileEl = this.renderTile(tile, `grid-${row}-${col}`);
+                            
+                            // Добавляем контекстное меню для удаления (только для игрока)
+                            if (this.currentPlayer === 'player') {
+                                tileEl.oncontextmenu = (e) => {
+                                    e.preventDefault();
+                                    this.removeTileFromGrid(row, col);
+                                };
+                            }
+                            
+                            cellInner.appendChild(tileEl);
+                            cell.appendChild(cellInner);
+                            cell.className = 'grid-cell occupied';
+                        } else {
+                            cell.className = 'grid-cell';
+                            cell.appendChild(cellInner);
+                            
+                            if (this.currentPlayer === 'player') {
+                                cell.onclick = () => this.placeTileOnGrid(row, col);
+                                
+                                // Добавляем drag and drop обработчики
+                                cell.addEventListener('dragover', (e) => {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = 'move';
+                                    cell.classList.add('drag-over');
+                                });
+                                
+                                cell.addEventListener('dragleave', (e) => {
+                                    cell.classList.remove('drag-over');
+                                });
+                                
+                                cell.addEventListener('drop', (e) => {
+                                    e.preventDefault();
+                                    cell.classList.remove('drag-over');
+                                    
+                                    const selectedTilesData = e.dataTransfer.getData('selectedTiles');
+                                    
+                                    this.handleDrop(selectedTilesData, row, col);
+                                });
+                            }
+                        }
+                        
+                        gridContainer.appendChild(cell);
+                    }
+                }
+            }
+        }
+
+        // Инициализация игры
+        const game = new RummikubGame();
+    </script>
+</body>
+</html>

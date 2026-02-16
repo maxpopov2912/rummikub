@@ -1603,14 +1603,16 @@
                 console.log('Robot has', validSets.length, 'valid sets to place');
                 
                 const tilesToPlace = [];
-                const usedPositions = new Set(); // Отслеживаем занятые позиции на доске
-                const usedTileIds = new Set(); // КРИТИЧНО: отслеживаем уже использованные плитки!
+                const usedPositions = new Set();
+                const usedTileIds = new Set();
                 
-                // Размещаем каждый набор ОТДЕЛЬНО
+                // ВАЖНО: Размещаем каждый набор на ОТДЕЛЬНОЙ строке для гарантии
+                let currentRow = 0;
+                
                 for (let set of validSets) {
                     console.log('Trying to place set:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
                     
-                    // Проверяем что все плитки в наборе уникальны и не использованы
+                    // Проверяем уникальность плиток в наборе
                     let setValid = true;
                     for (let tile of set) {
                         if (usedTileIds.has(tile.id)) {
@@ -1627,13 +1629,14 @@
                     
                     let placed = false;
                     
-                    // Ищем место для этого набора
-                    for (let row = 0; row < 7; row++) {
-                        for (let startCol = 0; startCol <= 21 - set.length - 1; startCol++) {
-                            // Проверяем что есть место для набора + 1 gap
+                    // Ищем место для набора, начиная с текущей строки
+                    for (let row = currentRow; row < 7; row++) {
+                        // Ищем свободное место в строке (минимум set.length + 2 для gap)
+                        for (let startCol = 0; startCol <= 21 - set.length - 2; startCol++) {
                             let canPlace = true;
                             
-                            for (let i = 0; i < set.length + 1; i++) { // +1 для gap
+                            // Проверяем место для набора + 2 пустые ячейки после
+                            for (let i = 0; i < set.length + 2; i++) {
                                 const posKey = `${row}-${startCol + i}`;
                                 if (this.boardGrid[row][startCol + i] !== null || usedPositions.has(posKey)) {
                                     canPlace = false;
@@ -1642,7 +1645,7 @@
                             }
                             
                             if (canPlace) {
-                                // Размещаем набор (без последней ячейки - это gap)
+                                // Размещаем набор
                                 for (let i = 0; i < set.length; i++) {
                                     const posKey = `${row}-${startCol + i}`;
                                     tilesToPlace.push({ 
@@ -1651,18 +1654,26 @@
                                         col: startCol + i 
                                     });
                                     usedPositions.add(posKey);
-                                    usedTileIds.add(set[i].id); // Помечаем плитку как использованную
+                                    usedTileIds.add(set[i].id);
                                 }
-                                // Резервируем gap
+                                
+                                // Резервируем 2 ячейки gap
                                 usedPositions.add(`${row}-${startCol + set.length}`);
+                                usedPositions.add(`${row}-${startCol + set.length + 1}`);
                                 
                                 console.log('Placed at row', row, 'col', startCol);
                                 placed = true;
+                                currentRow = row; // Следующий набор начнём искать с этой же строки
                                 break;
                             }
                         }
                         
                         if (placed) break;
+                        
+                        // Если в этой строке не поместился, следующий набор ищем со следующей строки
+                        if (row === currentRow && !placed) {
+                            currentRow = row + 1;
+                        }
                     }
                     
                     if (!placed) {
@@ -1679,8 +1690,30 @@
                 console.log('Total tiles to place:', tilesToPlace.length);
                 console.log('Tile IDs:', tilesToPlace.map(t => t.tile.id));
                 
+                // КРИТИЧНО: Проверяем что нет наборов которые склеились
+                this.verifyNoAdjacentSets(tilesToPlace);
+                
                 // Анимированное размещение плиток по одной
                 this.placeTilesWithAnimation(computerIndex, tilesToPlace, 0);
+            }
+
+            verifyNoAdjacentSets(tilesToPlace) {
+                // Проверяем что между наборами есть пропуски
+                const byRow = {};
+                for (let item of tilesToPlace) {
+                    if (!byRow[item.row]) byRow[item.row] = [];
+                    byRow[item.row].push(item.col);
+                }
+                
+                for (let row in byRow) {
+                    const cols = byRow[row].sort((a, b) => a - b);
+                    for (let i = 0; i < cols.length - 1; i++) {
+                        const gap = cols[i + 1] - cols[i];
+                        if (gap === 1) {
+                            console.warn(`WARNING: Adjacent tiles at row ${row}, cols ${cols[i]}-${cols[i + 1]}`);
+                        }
+                    }
+                }
             }
 
             handleComputerCannotPlace(computerIndex) {

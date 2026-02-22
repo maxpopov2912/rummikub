@@ -729,6 +729,9 @@
                 const name = this.computerNames[computerIndex];
                 const difficulty = this.computerDifficulties[computerIndex];
                 
+                // КРИТИЧНО: Проверяем целостность доски перед ходом
+                this.checkBoardIntegrity();
+                
                 this.showMessage(`Ход ${name}...`, 'info');
                 
                 // Сохраняем состояние доски перед ходом
@@ -831,17 +834,19 @@
                 // Проверяем каждый набор на доске
                 const sets = this.getBoardSets();
                 
+                console.log('Validating board, found', sets.length, 'sets');
+                
                 for (let set of sets) {
                     if (set.length > 0) {
                         // КРИТИЧНО: Набор должен быть минимум 3 плитки
                         if (set.length < 3) {
-                            console.log('Set too small (< 3):', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                            console.error('Set too small (< 3):', set.map(t => `${t.number}${t.color[0]}`).join(' '));
                             return false;
                         }
                         
                         // Проверяем что набор валиден
                         if (!this.validateSet(set)) {
-                            console.log('Invalid set found:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                            console.error('Invalid set found:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
                             return false;
                         }
                         
@@ -850,13 +855,24 @@
                             const numbers = set.filter(t => !t.isJoker).map(t => t.number);
                             const uniqueNumbers = new Set(numbers);
                             if (numbers.length !== uniqueNumbers.size) {
-                                console.log('Duplicate numbers in run:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                                console.error('Duplicate numbers in run:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                                return false;
+                            }
+                        }
+                        
+                        // Проверка на дубликаты в группе
+                        if (this.isValidGroup(set)) {
+                            const colors = set.filter(t => !t.isJoker).map(t => t.color);
+                            const uniqueColors = new Set(colors);
+                            if (colors.length !== uniqueColors.size) {
+                                console.error('Duplicate colors in group:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
                                 return false;
                             }
                         }
                     }
                 }
                 
+                console.log('Board validation: PASSED');
                 return true;
             }
 
@@ -1603,16 +1619,15 @@
                 console.log('Robot has', validSets.length, 'valid sets to place');
                 
                 const tilesToPlace = [];
-                const usedPositions = new Set();
                 const usedTileIds = new Set();
                 
-                // ВАЖНО: Размещаем каждый набор на ОТДЕЛЬНОЙ строке для гарантии
-                let currentRow = 0;
+                // НОВАЯ СТРАТЕГИЯ: Каждый набор на ОТДЕЛЬНОЙ строке (самое надёжное!)
+                let usedRows = new Set();
                 
                 for (let set of validSets) {
-                    console.log('Trying to place set:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                    console.log('Placing set:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
                     
-                    // Проверяем уникальность плиток в наборе
+                    // Проверяем уникальность плиток
                     let setValid = true;
                     for (let tile of set) {
                         if (usedTileIds.has(tile.id)) {
@@ -1622,62 +1637,83 @@
                         }
                     }
                     
-                    if (!setValid) {
-                        console.log('Skipping set with already used tiles');
-                        continue;
-                    }
+                    if (!setValid) continue;
                     
+                    // Ищем пустую строку (или строку с достаточным местом)
                     let placed = false;
                     
-                    // Ищем место для набора, начиная с текущей строки
-                    for (let row = currentRow; row < 7; row++) {
-                        // Ищем свободное место в строке (минимум set.length + 2 для gap)
-                        for (let startCol = 0; startCol <= 21 - set.length - 2; startCol++) {
-                            let canPlace = true;
-                            
-                            // Проверяем место для набора + 2 пустые ячейки после
-                            for (let i = 0; i < set.length + 2; i++) {
-                                const posKey = `${row}-${startCol + i}`;
-                                if (this.boardGrid[row][startCol + i] !== null || usedPositions.has(posKey)) {
-                                    canPlace = false;
-                                    break;
-                                }
-                            }
-                            
-                            if (canPlace) {
-                                // Размещаем набор
-                                for (let i = 0; i < set.length; i++) {
-                                    const posKey = `${row}-${startCol + i}`;
-                                    tilesToPlace.push({ 
-                                        tile: set[i], 
-                                        row: row, 
-                                        col: startCol + i 
-                                    });
-                                    usedPositions.add(posKey);
-                                    usedTileIds.add(set[i].id);
-                                }
-                                
-                                // Резервируем 2 ячейки gap
-                                usedPositions.add(`${row}-${startCol + set.length}`);
-                                usedPositions.add(`${row}-${startCol + set.length + 1}`);
-                                
-                                console.log('Placed at row', row, 'col', startCol);
-                                placed = true;
-                                currentRow = row; // Следующий набор начнём искать с этой же строки
+                    for (let row = 0; row < 7; row++) {
+                        // Пропускаем уже использованные строки
+                        if (usedRows.has(row)) continue;
+                        
+                        // Проверяем есть ли достаточно места в начале строки
+                        let canPlaceAtStart = true;
+                        for (let i = 0; i < set.length; i++) {
+                            if (this.boardGrid[row][i] !== null) {
+                                canPlaceAtStart = false;
                                 break;
                             }
                         }
                         
-                        if (placed) break;
+                        if (canPlaceAtStart) {
+                            // Размещаем в начале строки
+                            for (let i = 0; i < set.length; i++) {
+                                tilesToPlace.push({ 
+                                    tile: set[i], 
+                                    row: row, 
+                                    col: i 
+                                });
+                                usedTileIds.add(set[i].id);
+                            }
+                            usedRows.add(row);
+                            console.log('Placed in row', row, 'cols 0-' + (set.length - 1));
+                            placed = true;
+                            break;
+                        }
                         
-                        // Если в этой строке не поместился, следующий набор ищем со следующей строки
-                        if (row === currentRow && !placed) {
-                            currentRow = row + 1;
+                        // Если начало занято, ищем место справа с gap минимум 2
+                        let lastOccupiedCol = -1;
+                        for (let col = 0; col < 21; col++) {
+                            if (this.boardGrid[row][col] !== null) {
+                                lastOccupiedCol = col;
+                            }
+                        }
+                        
+                        if (lastOccupiedCol >= 0) {
+                            // Есть плитки в строке, размещаем с gap = 2
+                            const startCol = lastOccupiedCol + 3; // +1 сама плитка + 2 gap
+                            
+                            if (startCol + set.length <= 21) {
+                                // Проверяем что место свободно
+                                let canPlace = true;
+                                for (let i = 0; i < set.length; i++) {
+                                    if (this.boardGrid[row][startCol + i] !== null) {
+                                        canPlace = false;
+                                        break;
+                                    }
+                                }
+                                
+                                if (canPlace) {
+                                    // Размещаем
+                                    for (let i = 0; i < set.length; i++) {
+                                        tilesToPlace.push({ 
+                                            tile: set[i], 
+                                            row: row, 
+                                            col: startCol + i 
+                                        });
+                                        usedTileIds.add(set[i].id);
+                                    }
+                                    usedRows.add(row);
+                                    console.log('Placed in row', row, 'cols', startCol, '-', startCol + set.length - 1);
+                                    placed = true;
+                                    break;
+                                }
+                            }
                         }
                     }
                     
                     if (!placed) {
-                        console.log('Could not find space for set:', set.map(t => `${t.number}${t.color[0]}`).join(' '));
+                        console.log('Could not find space for set');
                     }
                 }
                 
@@ -1688,32 +1724,60 @@
                 }
                 
                 console.log('Total tiles to place:', tilesToPlace.length);
-                console.log('Tile IDs:', tilesToPlace.map(t => t.tile.id));
                 
-                // КРИТИЧНО: Проверяем что нет наборов которые склеились
-                this.verifyNoAdjacentSets(tilesToPlace);
+                // ФИНАЛЬНАЯ ПРОВЕРКА: нет ли склеенных наборов
+                if (!this.verifyGapBetweenSets(tilesToPlace)) {
+                    console.error('GAP VERIFICATION FAILED! Aborting placement.');
+                    this.handleComputerCannotPlace(computerIndex);
+                    return;
+                }
                 
                 // Анимированное размещение плиток по одной
                 this.placeTilesWithAnimation(computerIndex, tilesToPlace, 0);
             }
 
-            verifyNoAdjacentSets(tilesToPlace) {
-                // Проверяем что между наборами есть пропуски
+            verifyGapBetweenSets(tilesToPlace) {
+                // Группируем по строкам
                 const byRow = {};
                 for (let item of tilesToPlace) {
                     if (!byRow[item.row]) byRow[item.row] = [];
                     byRow[item.row].push(item.col);
                 }
                 
+                // Проверяем каждую строку
                 for (let row in byRow) {
                     const cols = byRow[row].sort((a, b) => a - b);
-                    for (let i = 0; i < cols.length - 1; i++) {
-                        const gap = cols[i + 1] - cols[i];
-                        if (gap === 1) {
-                            console.warn(`WARNING: Adjacent tiles at row ${row}, cols ${cols[i]}-${cols[i + 1]}`);
+                    
+                    // Находим группы подряд идущих плиток (наборы)
+                    const sets = [];
+                    let currentSet = [cols[0]];
+                    
+                    for (let i = 1; i < cols.length; i++) {
+                        if (cols[i] === cols[i - 1] + 1) {
+                            // Плитка подряд - тот же набор
+                            currentSet.push(cols[i]);
+                        } else {
+                            // Разрыв - новый набор
+                            sets.push(currentSet);
+                            currentSet = [cols[i]];
+                        }
+                    }
+                    sets.push(currentSet);
+                    
+                    // Если больше 1 набора в строке - проверяем gap
+                    if (sets.length > 1) {
+                        for (let i = 0; i < sets.length - 1; i++) {
+                            const gap = sets[i + 1][0] - sets[i][sets[i].length - 1] - 1;
+                            if (gap < 2) {
+                                console.error(`INSUFFICIENT GAP in row ${row}: ${gap} cells between sets`);
+                                console.error(`Set 1 ends at col ${sets[i][sets[i].length - 1]}, Set 2 starts at col ${sets[i + 1][0]}`);
+                                return false;
+                            }
                         }
                     }
                 }
+                
+                return true;
             }
 
             handleComputerCannotPlace(computerIndex) {
@@ -1732,11 +1796,63 @@
                 setTimeout(() => this.switchTurn(), 1500);
             }
 
+            checkBoardIntegrity() {
+                // Проверяем что на доске нет дубликатов плиток
+                const tilesOnBoard = [];
+                const tileIds = new Set();
+                
+                for (let row = 0; row < 7; row++) {
+                    for (let col = 0; col < 21; col++) {
+                        const tile = this.boardGrid[row][col];
+                        if (tile) {
+                            if (tileIds.has(tile.id)) {
+                                console.error(`DUPLICATE TILE ON BOARD! ${tile.number}${tile.color[0]} at [${row}][${col}], ID: ${tile.id}`);
+                                // Удаляем дубликат
+                                this.boardGrid[row][col] = null;
+                            } else {
+                                tileIds.add(tile.id);
+                                tilesOnBoard.push(tile);
+                            }
+                        }
+                    }
+                }
+                
+                // Проверяем что наборы разделены
+                for (let row = 0; row < 7; row++) {
+                    let lastTileCol = -10;
+                    let currentSetStart = -1;
+                    let currentSetLength = 0;
+                    
+                    for (let col = 0; col < 21; col++) {
+                        if (this.boardGrid[row][col] !== null) {
+                            if (lastTileCol + 1 === col) {
+                                // Плитка подряд
+                                currentSetLength++;
+                            } else {
+                                // Начало нового набора
+                                if (lastTileCol + 1 < col - 1) {
+                                    // Нормальный gap (≥2 ячейки)
+                                    currentSetStart = col;
+                                    currentSetLength = 1;
+                                } else if (lastTileCol >= 0) {
+                                    // Недостаточный gap!
+                                    console.warn(`Insufficient gap in row ${row} between col ${lastTileCol} and ${col}`);
+                                }
+                            }
+                            lastTileCol = col;
+                        }
+                    }
+                }
+                
+                return tilesOnBoard.length;
+            }
+
             placeTilesWithAnimation(computerIndex, tilesToPlace, index) {
                 if (index >= tilesToPlace.length) {
-                    // Все плитки размещены - проверяем валидность доски
+                    // Все плитки размещены - КРИТИЧНО: проверяем валидность доски
                     if (!this.validateEntireBoard()) {
-                        console.log('Board invalid after placement, this should not happen!');
+                        console.error('Board invalid after placement! This should not happen!');
+                        this.showMessage('Ошибка валидации доски', 'error');
                     }
                     
                     this.firstMeldMade[`computer${computerIndex + 1}`] = true;
@@ -1971,13 +2087,25 @@
             validateSet(tiles) {
                 if (tiles.length < 3) return false;
 
+                // КРИТИЧНО: Проверяем уникальность tile ID
+                const tileIds = tiles.map(t => t.id);
+                if (new Set(tileIds).size !== tileIds.length) {
+                    console.error('Duplicate tile IDs in set!');
+                    return false;
+                }
+
                 // Проверка на группу (одинаковые числа, разные цвета)
                 const isGroup = this.isValidGroup(tiles);
                 
                 // Проверка на последовательность (одинаковый цвет, последовательные числа)
                 const isRun = this.isValidRun(tiles);
 
-                return isGroup || isRun;
+                if (!isGroup && !isRun) {
+                    console.error('Set is neither valid group nor valid run');
+                    return false;
+                }
+
+                return true;
             }
 
             isValidGroup(tiles) {
@@ -2052,6 +2180,17 @@
                 // Проверяем что игрок что-то выложил (turnState существует)
                 if (!this.turnState) {
                     this.showMessage('❌ Сначала выложите плитки или возьмите плитку из стопки!', 'error');
+                    return;
+                }
+                
+                // НОВАЯ ПРОВЕРКА: Игрок должен выложить хотя бы одну плитку ИЗ РУКИ
+                // Сравниваем начальное состояние руки с текущим
+                const initialHandSize = this.turnState.hand.length;
+                const currentHandSize = this.playerHand.length;
+                
+                if (currentHandSize >= initialHandSize) {
+                    // Игрок не выложил ни одной плитки из руки (только переставлял доску)
+                    this.showMessage('❌ Вы должны выложить хотя бы одну плитку из руки!', 'error');
                     return;
                 }
                 
